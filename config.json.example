@@ -1,4 +1,5 @@
 {
-  "whitelistedGroups": ["123456789@g.us", "0000000000@g.us"],
-  "destinations": []
+  "whatsappSources": ["xxx-xxx@g.us", "yyy-yyy@g.us"],
+  "telegramSources": [chat_id_1, chat_id_2],
+  "telegramDestinations": [destination_chat_id_1, destination_chat_id_2]
 }
