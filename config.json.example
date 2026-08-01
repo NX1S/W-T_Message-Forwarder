@@ -1,5 +1,5 @@
 {
   "whatsappSources": ["xxx-xxx@g.us", "yyy-yyy@g.us"],
-  "telegramSources": [chat_id_1, chat_id_2],
-  "telegramDestinations": [destination_chat_id_1, destination_chat_id_2]
+  "telegramSources": [-1001234567890, -123456789],
+  "telegramDestinations": [1234567890, 1020304050]
 }
