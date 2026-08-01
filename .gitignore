@@ -1,0 +1,8 @@
+node_modules/
+auth_info_baileys*
+Logs
+.env
+config.json
+data.json
+signalTimestamps.json
+*.log
