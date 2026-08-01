@@ -2,6 +2,7 @@
 // UNIFIED MESSAGE FORWARDER — WhatsApp + Telegram → Telegram Bot
 // No filters. All messages from whitelisted sources are forwarded.
 // Sequential startup: Telegram Bot → Telegram Self-Bot → WhatsApp
+// Logs all messages to individual files per source in logs/ folder
 // ═══════════════════════════════════════════════════════════════════════════════
 
 const dotenv = require('dotenv');
@@ -22,6 +23,7 @@ dotenv.config();
 
 const CONFIG_FILE = 'config.json';
 const DATA_FILE = 'data.json';
+const LOGS_DIR = 'logs';
 const WHATSAPP_AUTH_DIR = 'auth_info_baileys';
 
 const defaultConfig = {
@@ -89,12 +91,47 @@ function saveData(data) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// LOGGING
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function ensureLogsDir() {
+    if (!fs.existsSync(LOGS_DIR)) {
+        fs.mkdirSync(LOGS_DIR, { recursive: true });
+        console.log(`[${getTimestamp()}][SYSTEM] Created logs directory: ${LOGS_DIR}`);
+    }
+}
+
+function sanitizeFilename(name) {
+    return name
+        .replace(/[<>:"/\\|?*]/g, '_')
+        .replace(/\s+/g, '_')
+        .trim()
+        .substring(0, 100);
+}
+
+function logMessage(source, platform, text) {
+    const safeName = sanitizeFilename(source);
+    const logFile = path.join(LOGS_DIR, `${safeName}.log`);
+    const timestamp = new Date().toISOString();
+    const line = `[${timestamp}] [${platform.toUpperCase()}] ${text}\n`;
+
+    try {
+        fs.appendFileSync(logFile, line, 'utf8');
+    } catch (err) {
+        console.error(`[${getTimestamp()}][ERROR] Failed to write log:`, err.message);
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // MESSAGE QUEUE & FORWARDING
 // ═══════════════════════════════════════════════════════════════════════════════
 
 async function queueMessage(source, platform, text) {
     messageQueue.push({ source, platform, text, timestamp: Date.now() });
     console.log(`[${getTimestamp()}][QUEUE] Message from ${platform}: ${source}`);
+
+    // Log to file
+    logMessage(source, platform, text);
 
     const data = loadData();
     if (!data.stats[source]) data.stats[source] = { platform, count: 0 };
@@ -164,30 +201,31 @@ async function connectWhatsApp() {
             }
 
             if (connection === 'open') {
-                if (connection === 'open') {
-                    waReconnectAttempts = 0;
-                    const phone = whatsappSock.user?.id?.split('@')[0] || 'Unknown';
-                    const name = whatsappSock.user?.name || 'Unknown';
-                    console.log(`[${getTimestamp()}][WHATSAPP] ✅ Connected and listening to ${phone} || ${name}`);
+                waReconnectAttempts = 0;
+                const phone = whatsappSock.user?.id?.split('@')[0] || 'Unknown';
+                const name = whatsappSock.user?.name || 'Unknown';
+                console.log(`[${getTimestamp()}][WHATSAPP] ✅ Connected and listening to ${phone} || ${name}`);
 
-                    // MOVE THIS HERE (was outside):
-                    whatsappSock.ev.on('messages.upsert', async ({ messages }) => {
-                        for (const msg of messages) {
-                            const jid = msg.key.remoteJid;
-                            if (!jid || !jid.endsWith('@g.us')) continue;
-                            if (!config.whatsappSources.includes(jid)) continue;
-                            let text = msg.message?.conversation || msg.message?.extendedTextMessage?.text || '';
-                            if (!text) continue;
-                            console.log(`[${getTimestamp()}][WHATSAPP] Message from ${jid}`);
-                            let sourceName = jid;
-                            try {
-                                const meta = await whatsappSock.groupMetadata(jid);
-                                sourceName = meta.subject || jid;
-                            } catch { }
-                            await queueMessage(sourceName, 'whatsapp', text);
-                        }
-                    });
-                }
+                whatsappSock.ev.on('messages.upsert', async ({ messages }) => {
+                    for (const msg of messages) {
+                        const jid = msg.key.remoteJid;
+                        if (!jid || !jid.endsWith('@g.us')) continue;
+                        if (!config.whatsappSources.includes(jid)) continue;
+
+                        let text = msg.message?.conversation || msg.message?.extendedTextMessage?.text || '';
+                        if (!text) continue;
+
+                        console.log(`[${getTimestamp()}][WHATSAPP] Message from ${jid}`);
+
+                        let sourceName = jid;
+                        try {
+                            const meta = await whatsappSock.groupMetadata(jid);
+                            sourceName = meta.subject || jid;
+                        } catch { /* ignore */ }
+
+                        await queueMessage(sourceName, 'whatsapp', text);
+                    }
+                });
             }
 
             if (connection === 'close') {
@@ -204,6 +242,7 @@ async function connectWhatsApp() {
                 scheduleWAReconnect();
             }
         });
+
         whatsappSock.ev.on('creds.update', saveCreds);
 
     } catch (err) {
@@ -246,12 +285,10 @@ async function connectTelegramSelfBot() {
 
     try {
         await telegramSelfClient.connect();
-        
+
         const me = await telegramSelfClient.getMe();
         console.log(`[${getTimestamp()}][TELEGRAM] ✅ Self-bot connected as @${me.username || me.firstName}!`);
 
-        // Use the SAME approach as your working script:
-        // Load sources from config and pass to NewMessage({ chats: ... })
         telegramSelfClient.addEventHandler(async (event) => {
             const msg = event.message;
             if (!msg || !msg.message) return;
@@ -351,14 +388,15 @@ process.on('SIGTERM', cleanup);
 
 (async () => {
     console.log('╔══════════════════════════════════════════════════════════════╗');
-    console.log('║     UNIFIED MESSAGE FORWARDER v2.1                           ║');
+    console.log('║     UNIFIED MESSAGE FORWARDER v2.4                           ║');
     console.log('║     WhatsApp + Telegram → Telegram Bot                       ║');
-    console.log('║     Read README.md for guide                                 ║');
+    console.log('║     Logs all messages to logs/ folder per source             ║');
     console.log('╚══════════════════════════════════════════════════════════════╝\n');
 
     ensureConfigExists();
     ensureDataExists();
     loadConfig();
+    ensureLogsDir();
 
     console.log(`[${getTimestamp()}][SYSTEM] WhatsApp sources: ${config.whatsappSources.length}`);
     console.log(`[${getTimestamp()}][SYSTEM] Telegram sources: ${config.telegramSources.length}`);
