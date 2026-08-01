@@ -8,7 +8,6 @@ A unified message forwarder that combines **WhatsApp** and **Telegram** listener
 - 💬 Listen to Telegram groups, channels, and private messages
 - 🤖 Forward all messages to Telegram Bot destinations
 - 📝 Log all messages per source in `logs/` folder
-- 📊 Track message statistics in `data.json`
 
 ## Setup
 
@@ -46,13 +45,18 @@ Edit `config.json` to specify your sources and destinations:
 {
   "whatsappSources": ["xxx-xxx@g.us", "yyy-yyy@g.us"],
   "telegramSources": [chat_id_1, chat_id_2],
-  "telegramDestinations": [destination_chat_id]
+  "telegramDestinations": [destination_chat_id_1, destination_chat_id_2]
 }
 ```
 
 **To find Telegram group/channel IDs:**
-- Use group listers or inspection tools to get numeric chat IDs
+- Use group listers (provided in "Other Scripts" folder) or inspection tools to get numeric chat IDs
 - Private messages use user IDs (positive numbers for users)
+
+*note:*  
+*private chat IDs have **10 digits***   
+*groups start with **-**.*  
+*channels start with **-100** + 10 digits*  
 
 ### 5. Start the Bot
 
@@ -62,12 +66,12 @@ node main.js
 
 Follow the prompts:
 1. **WhatsApp**: Scan QR code with your phone (Settings → Linked Devices)
-2. **Telegram Self-Bot**: Logs in using your `STRING_SESSION`
-3. **Telegram Forwarder Bot**: Connects using your `BOT_TOKEN`
+2. **Telegram Self-Bot**: Automatically logs in using your `STRING_SESSION`
+3. **Telegram Forwarder Bot**: Automatically connects using your `BOT_TOKEN`
 
 ## Important Notes
 
-⚠️ **WhatsApp Limitation**: The WhatsApp listener only works for **groups** (`@g.us` JIDs). Direct messages and channels are not supported by the Baileys library.
+⚠️ **WhatsApp Limitation**: The WhatsApp listener only works for **groups** 
 
 ✅ **Telegram Support**: Works for:
 - Groups
@@ -89,6 +93,6 @@ All messages are logged to individual files in the `logs/` folder with timestamp
 ## Troubleshooting
 
 - **`STRING_SESSION` invalid**: Regenerate using AutoStringSession
-- **WhatsApp QR timeout**: Restart and try again
+- **WhatsApp QR timeout**: Restart and try again. If it didnt work, delete `auth_info_baileys`  folder.
 - **Bot not sending messages**: Verify `BOT_TOKEN` and destination chat IDs have proper permissions
-- **No messages received**: Check that sources are in `config.json` and listeners are connected
+- **No messages received**: Check that sources are in `config.json` and listeners are connected. You must also be in the groups and subscribed to the channels.
