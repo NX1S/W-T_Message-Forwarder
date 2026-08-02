@@ -150,7 +150,7 @@ async function processQueue() {
 
     while (messageQueue.length > 0) {
         const item = messageQueue.shift();
-        const formattedText = `📡 *${item.platform.toUpperCase()}* → *${item.source}*\n\n${item.text}`;
+        const formattedText = `📡 *${item.platform.toUpperCase() == "TELEGRAM" ? "🟦" : "🟩"}* → *${item.source}*\n\n${item.text}`;
 
         for (const destId of config.telegramDestinations) {
             try {
