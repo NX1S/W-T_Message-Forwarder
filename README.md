@@ -55,13 +55,13 @@ Edit `config.json` to specify your sources and destinations:
 
 *note:*  
 *private chat IDs have **10 digits***   
-*groups start with **-**.*  
-*channels start with **-100** + 10 digits*  
+*groups start with "**-**" + 10 digits*  
+*channels start with "**-100**" + 10 digits*  
 
-### 5. Start the Bot
+## Initialization
 
 ```bash
-node main.js
+npm start
 ```
 
 Follow the prompts:

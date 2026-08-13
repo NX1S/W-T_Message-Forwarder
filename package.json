@@ -1,6 +1,6 @@
 {
   "name": "message-forwarder",
-  "version": "1.0.0",
+  "version": "2.5",
   "description": "forwards messages from groups on both whatsapp and telegram to specified telegram group(s)",
   "keywords": [
     "message",
@@ -11,6 +11,7 @@
   "type": "commonjs",
   "main": "main.js",
   "scripts": {
+    "start" : "node main.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
