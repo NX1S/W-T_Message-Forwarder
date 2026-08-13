@@ -1,6 +1,5 @@
 // ═══════════════════════════════════════════════════════════════════════════════
 // UNIFIED MESSAGE FORWARDER — WhatsApp + Telegram → Telegram Bot
-// No filters. All messages from whitelisted sources are forwarded.
 // Sequential startup: Telegram Bot → Telegram Self-Bot → WhatsApp
 // Logs all messages to individual files per source in logs/ folder
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -280,7 +279,11 @@ async function connectTelegramSelfBot() {
     }
 
     const stringSession = new StringSession(sessionString);
-    telegramSelfClient = new TelegramClient(stringSession, apiId, apiHash, { connectionRetries: 5 });
+    const telegramSelfClient = new TelegramClient(stringSession, apiId, apiHash, {
+        connectionRetries: 5,
+        useWSS: true,      // wont work without it on my network
+        useIPv6: false,    // Optional but safe to keep
+    });
     telegramSelfClient.setLogLevel('none');
 
     try {
@@ -340,7 +343,11 @@ async function connectTelegramBot() {
         return;
     }
 
-    telegramBotClient = new TelegramClient(new StringSession(''), apiId, apiHash, { connectionRetries: 5 });
+    const telegramBotClient = new TelegramClient(new StringSession(''), apiId, apiHash, {
+        connectionRetries: 5,
+        useWSS: true,      // wont work without it on my network
+        useIPv6: false,    // Optional but safe to keep
+    });
     telegramBotClient.setLogLevel('none');
 
     try {
@@ -387,11 +394,11 @@ process.on('SIGTERM', cleanup);
 // ═══════════════════════════════════════════════════════════════════════════════
 
 (async () => {
-    console.log('╔══════════════════════════════════════════════════════════════╗');
-    console.log('║     UNIFIED MESSAGE FORWARDER v2.4                           ║');
-    console.log('║     WhatsApp + Telegram → Telegram Bot                       ║');
-    console.log('║     Logs all messages to logs/ folder per source             ║');
-    console.log('╚══════════════════════════════════════════════════════════════╝\n');
+    console.log('╔════════════════════════════════════════════╗');
+    console.log('║     MESSAGE FORWARDER v2.5                 ║');
+    console.log('║     WhatsApp + Telegram                    ║');
+    console.log('║     All messages logged in logs folder     ║');
+    console.log('╚════════════════════════════════════════════╝\n');
 
     ensureConfigExists();
     ensureDataExists();
