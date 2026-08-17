@@ -149,11 +149,29 @@ async function processQueue() {
 
     while (messageQueue.length > 0) {
         const item = messageQueue.shift();
-        const formattedText = `📡 ${item.platform.toUpperCase() == "TELEGRAM" ? "🟦" : "🟩"} → *${item.source}*\n\n${item.text}`;
+        const formattedText = `📡 ${item.platform.toUpperCase() == "TELEGRAM" ? "🟦" : "🟩"} → **${item.source}**\n\n${item.text}`;
 
         for (const destId of config.telegramDestinations) {
             try {
-                await telegramBotClient.sendMessage(destId, { message: formattedText });
+                // Resolve the destination entity properly
+                let entity;
+                try {
+                    entity = await telegramBotClient.getInputEntity(destId);
+                } catch (e) {
+                    // Fallback: try converting -100 prefix
+                    const str = String(destId);
+                    if (str.startsWith('-100')) {
+                        const channelId = BigInt(str.slice(4));
+                        entity = await telegramBotClient.getInputEntity(channelId);
+                    } else if (str.startsWith('-')) {
+                        const chatId = BigInt(str);
+                        entity = await telegramBotClient.getInputEntity(chatId);
+                    } else {
+                        throw e;
+                    }
+                }
+
+                await telegramBotClient.sendMessage(entity, { message: formattedText });
                 console.log(`[${getTimestamp()}][SEND] Forwarded to ${destId}`);
             } catch (err) {
                 console.error(`[${getTimestamp()}][ERROR] Failed to send to ${destId}:`, err.message);
@@ -214,13 +232,13 @@ async function connectWhatsApp() {
                         let text = msg.message?.conversation || msg.message?.extendedTextMessage?.text || '';
                         if (!text) continue;
 
-                        console.log(`[${getTimestamp()}][WHATSAPP] Message from ${jid}`);
-
                         let sourceName = jid;
                         try {
                             const meta = await whatsappSock.groupMetadata(jid);
                             sourceName = meta.subject || jid;
                         } catch { /* ignore */ }
+                        
+                        console.log(`[${getTimestamp()}][WHATSAPP] Message from  ${sourceName}`);
 
                         await queueMessage(sourceName, 'whatsapp', text);
                     }
@@ -279,7 +297,7 @@ async function connectTelegramSelfBot() {
     }
 
     const stringSession = new StringSession(sessionString);
-    const telegramSelfClient = new TelegramClient(stringSession, apiId, apiHash, {
+    telegramSelfClient = new TelegramClient(stringSession, apiId, apiHash, {
         connectionRetries: 5,
         useWSS: true,      // wont work without it on my network
         useIPv6: false,    // Optional but safe to keep
@@ -297,29 +315,19 @@ async function connectTelegramSelfBot() {
             if (!msg || !msg.message) return;
 
             let sourceId;
-            let sourceType = 'unknown';
 
-            if (msg.peerId?.channelId) {
-                sourceId = msg.peerId.channelId;
-                sourceType = 'channel';
-            } else if (msg.peerId?.chatId) {
-                sourceId = msg.peerId.chatId;
-                sourceType = 'group';
-            } else if (msg.peerId?.userId) {
-                sourceId = msg.peerId.userId;
-                sourceType = 'private';
-            } else {
+            if (msg.chatId)
+                sourceId = msg.chatId.toString();
+            else
                 return;
-            }
-
-            let sourceName = String(sourceId);
+            let sourceName;
             try {
                 const entity = await telegramSelfClient.getEntity(msg.peerId);
                 sourceName = entity.title || entity.firstName || entity.username || String(sourceId);
             } catch { sourceName = String(sourceId); }
 
-            console.log(`[${getTimestamp()}][TELEGRAM] [${sourceType.toUpperCase()}] Message from ${sourceName} (${sourceId})`);
-            await queueMessage(`${sourceName} [${sourceType}]`, 'telegram', msg.message);
+            console.log(`[${getTimestamp()}][TELEGRAM] Message from ${sourceName}`);
+            await queueMessage(sourceName, 'telegram', msg.message);
 
         }, new NewMessage({ chats: config.telegramSources }));
 
@@ -343,7 +351,7 @@ async function connectTelegramBot() {
         return;
     }
 
-    const telegramBotClient = new TelegramClient(new StringSession(''), apiId, apiHash, {
+    telegramBotClient = new TelegramClient(new StringSession(''), apiId, apiHash, {
         connectionRetries: 5,
         useWSS: true,      // wont work without it on my network
         useIPv6: false,    // Optional but safe to keep

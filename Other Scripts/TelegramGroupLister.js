@@ -10,6 +10,8 @@ const stringSession = new StringSession(process.env.STRING_SESSION);
 
 const client = new TelegramClient(stringSession, apiId, apiHash, {
     connectionRetries: 5,
+    useWSS: true,      // wont work without it on my network
+    useIPv6: false,    // Optional but safe to keep
 });
 
 (async () => {
