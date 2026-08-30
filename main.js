@@ -418,16 +418,16 @@ process.on('SIGTERM', cleanup);
     console.log(`[${getTimestamp()}][SYSTEM] Destinations: ${config.telegramDestinations.length}\n`);
 
     // ─── STEP 1: Start Telegram Bot (Forwarder) ───
-    console.log(`[${getTimestamp()}][SYSTEM] Step 1/3: Starting Telegram Forwarder Bot...\n`);
+    console.log(`[${getTimestamp()}][SYSTEM] Starting Telegram Forwarder Bot...\n`);
     await connectTelegramBot();
 
     // ─── STEP 2: Start Telegram Self-Bot (Listener) ───
-    console.log(`\n[${getTimestamp()}][SYSTEM] Step 2/3: Starting Telegram Self-Bot Listener...\n`);
+    console.log(`\n[${getTimestamp()}][SYSTEM] Starting Telegram Self-Bot Listener...\n`);
     await connectTelegramSelfBot();
 
     // ─── STEP 3: Start WhatsApp ───
-    console.log(`\n[${getTimestamp()}][SYSTEM] Step 3/3: Starting WhatsApp Listener...\n`);
-    await connectWhatsApp();
+    //console.log(`\n[${getTimestamp()}][SYSTEM] Starting WhatsApp Listener...\n`);
+    //await connectWhatsApp();
 
     console.log(`\n[${getTimestamp()}][SYSTEM] ✅ All services running. Waiting for messages...\n`);
 })();
