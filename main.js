@@ -12,7 +12,8 @@ const fs = require('fs');
 const path = require('path');
 const { TelegramClient } = require('telegram');
 const { StringSession } = require('telegram/sessions/index.js');
-const { NewMessage, EditedMessage } = require('telegram/events/index.js');
+const { NewMessage } = require('telegram/events/index.js');
+const { EditedMessage } = require('telegram/events/EditedMessage.js');
 
 dotenv.config();
 
