@@ -12,7 +12,7 @@ const fs = require('fs');
 const path = require('path');
 const { TelegramClient } = require('telegram');
 const { StringSession } = require('telegram/sessions/index.js');
-const { NewMessage } = require('telegram/events/index.js');
+const { NewMessage, EditedMessage } = require('telegram/events/index.js');
 
 dotenv.config();
 
@@ -310,16 +310,17 @@ async function connectTelegramSelfBot() {
         const me = await telegramSelfClient.getMe();
         console.log(`[${getTimestamp()}][TELEGRAM] ✅ Self-bot connected as @${me.username || me.firstName}!`);
 
+        // ─── Handler for NEW messages ───
         telegramSelfClient.addEventHandler(async (event) => {
             const msg = event.message;
             if (!msg || !msg.message) return;
 
             let sourceId;
-
             if (msg.chatId)
                 sourceId = msg.chatId.toString();
             else
                 return;
+
             let sourceName;
             try {
                 const entity = await telegramSelfClient.getEntity(msg.peerId);
@@ -330,6 +331,28 @@ async function connectTelegramSelfBot() {
             await queueMessage(sourceName, 'telegram', msg.message);
 
         }, new NewMessage({ chats: config.telegramSources }));
+
+        // ─── Handler for EDITED messages ───
+        telegramSelfClient.addEventHandler(async (event) => {
+            const msg = event.message;
+            if (!msg || !msg.message) return;
+
+            let sourceId;
+            if (msg.chatId)
+                sourceId = msg.chatId.toString();
+            else
+                return;
+
+            let sourceName;
+            try {
+                const entity = await telegramSelfClient.getEntity(msg.peerId);
+                sourceName = entity.title || entity.firstName || entity.username || String(sourceId);
+            } catch { sourceName = String(sourceId); }
+
+            console.log(`[${getTimestamp()}][TELEGRAM] ✏️ Edited message from ${sourceName}`);
+            await queueMessage(sourceName, 'telegram', msg.message);
+
+        }, new EditedMessage({ chats: config.telegramSources }));
 
     } catch (err) {
         console.error(`[${getTimestamp()}][TELEGRAM] Self-bot connection failed:`, err.message);
