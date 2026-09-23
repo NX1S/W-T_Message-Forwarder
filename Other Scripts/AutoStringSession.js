@@ -20,6 +20,8 @@ let stringSession = new StringSession("");
   console.log("⚡ Starting Telegram session...");
   const client = new TelegramClient(stringSession, apiId, apiHash, {
     connectionRetries: 5,
+    useWSS: true,      // wont work without it on my network
+    useIPv6: false,    // Optional but safe to keep
   });
 
   await client.start({

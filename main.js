@@ -21,6 +21,10 @@ dotenv.config();
 // CONFIGURATION
 // ═══════════════════════════════════════════════════════════════════════════════
 
+const USE_TRIGGER_WORDS = true;
+// Set to false to disable filtering and fetch everything.
+const TRIGGER_WORDS = ['buy', 'sell', 'entry', 'close', 'breakeven', 'exit', 'xauusd'];
+// Only messages containing any of these words will be fetched.
 const CONFIG_FILE = 'config.json';
 const DATA_FILE = 'data.json';
 const LOGS_DIR = 'logs';
@@ -238,7 +242,7 @@ async function connectWhatsApp() {
                             const meta = await whatsappSock.groupMetadata(jid);
                             sourceName = meta.subject || jid;
                         } catch { /* ignore */ }
-                        
+
                         console.log(`[${getTimestamp()}][WHATSAPP] Message from  ${sourceName}`);
 
                         await queueMessage(sourceName, 'whatsapp', text);
@@ -316,6 +320,12 @@ async function connectTelegramSelfBot() {
             const msg = event.message;
             if (!msg || !msg.message) return;
 
+            let text = msg.text || '';
+            if (!text) return;
+
+            if (USE_TRIGGER_WORDS)
+                if (TRIGGER_WORDS.length && !TRIGGER_WORDS.some(w => text.toLowerCase().includes(w))) return;
+
             let sourceId;
             if (msg.chatId)
                 sourceId = msg.chatId.toString();
@@ -337,6 +347,12 @@ async function connectTelegramSelfBot() {
         telegramSelfClient.addEventHandler(async (event) => {
             const msg = event.message;
             if (!msg || !msg.message) return;
+
+            let text = msg.text || '';
+            if (!text) return;
+
+            if (USE_TRIGGER_WORDS)
+                if (TRIGGER_WORDS.length && !TRIGGER_WORDS.some(w => text.toLowerCase().includes(w))) return;
 
             let sourceId;
             if (msg.chatId)
