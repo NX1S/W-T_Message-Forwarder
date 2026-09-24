@@ -2,6 +2,11 @@
 // UNIFIED MESSAGE FORWARDER — WhatsApp + Telegram → Telegram Bot
 // Sequential startup: Telegram Bot → Telegram Self-Bot → WhatsApp
 // Logs all messages to individual files per source in logs/ folder
+//
+// FORWARDED-MESSAGE FILTER (NEW in v2.6)
+//   · Messages forwarded from a DIFFERENT source are skipped (not forwarded).
+//   · Messages forwarded from the SAME channel are processed normally.
+//   · Hidden/anonymous forwards (no fromId) are treated as "different source".
 // ═══════════════════════════════════════════════════════════════════════════════
 
 const dotenv = require('dotenv');
@@ -25,6 +30,13 @@ const USE_TRIGGER_WORDS = true;
 // Set to false to disable filtering and fetch everything.
 const TRIGGER_WORDS = ['buy', 'sell', 'entry', 'close', 'breakeven', 'exit', 'xauusd'];
 // Only messages containing any of these words will be fetched.
+
+// Forwarded-message filter:
+//   true  → a message forwarded from a DIFFERENT source is skipped (not forwarded)
+//   same-source forwards still pass unless ALLOW_SAME_SOURCE_FORWARD = false
+const IGNORE_FORWARDED_FROM_OTHER_SOURCES = true;
+const ALLOW_SAME_SOURCE_FORWARD           = true;
+
 const CONFIG_FILE = 'config.json';
 const DATA_FILE = 'data.json';
 const LOGS_DIR = 'logs';
@@ -92,6 +104,41 @@ function loadData() {
 
 function saveData(data) {
     fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2), 'utf8');
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// FORWARDED-MESSAGE FILTER
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// Telegram IDs come in two dialects:
+//   bare:   2401234567        (entity.id, fwdFrom PeerChannel.channelId)
+//   marked: -1002401234567    (msg.chatId)
+function normId(idLike) {
+    const s = idLike.toString();
+    if (s.startsWith('-100')) return s.slice(4);
+    if (s.startsWith('-')) return s.slice(1);
+    return s;
+}
+
+// Returns true if this message should be SKIPPED because it was forwarded
+// from a different source than the chat it was posted in.
+// Used by both the NewMessage and EditedMessage handlers.
+function isForwardedFromElsewhere(msg) {
+    if (!IGNORE_FORWARDED_FROM_OTHER_SOURCES || !msg.fwdFrom) return false;
+
+    const fwdPeer = msg.fwdFrom.fromId;
+    let fwdSourceId = null;
+
+    if (fwdPeer) {
+        if (fwdPeer.className === 'PeerChannel') fwdSourceId = fwdPeer.channelId;
+        else if (fwdPeer.className === 'PeerChat') fwdSourceId = fwdPeer.chatId;
+        else if (fwdPeer.className === 'PeerUser') fwdSourceId = fwdPeer.userId; // user ≠ channel → different source
+    }
+
+    // fwdSourceId null (hidden/anonymous forward) → cannot verify origin → treat as different source
+    const sameSource = fwdSourceId != null && msg.chatId != null && normId(fwdSourceId) === normId(msg.chatId);
+
+    return !sameSource || !ALLOW_SAME_SOURCE_FORWARD;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -320,6 +367,9 @@ async function connectTelegramSelfBot() {
             const msg = event.message;
             if (!msg || !msg.message) return;
 
+            // ─── NEW: skip messages forwarded from a different source ───
+            if (isForwardedFromElsewhere(msg)) return;
+
             let text = msg.text || '';
             if (!text) return;
 
@@ -347,6 +397,9 @@ async function connectTelegramSelfBot() {
         telegramSelfClient.addEventHandler(async (event) => {
             const msg = event.message;
             if (!msg || !msg.message) return;
+
+            // ─── NEW: skip messages forwarded from a different source ───
+            if (isForwardedFromElsewhere(msg)) return;
 
             let text = msg.text || '';
             if (!text) return;
@@ -443,7 +496,7 @@ process.on('SIGTERM', cleanup);
 
 (async () => {
     console.log('╔════════════════════════════════════════════╗');
-    console.log('║     MESSAGE FORWARDER v2.5                 ║');
+    console.log('║     MESSAGE FORWARDER v2.6                 ║');
     console.log('║     WhatsApp + Telegram                    ║');
     console.log('║     All messages logged in logs folder     ║');
     console.log('╚════════════════════════════════════════════╝\n');
